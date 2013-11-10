@@ -250,13 +250,23 @@ main()
         LCD_ShowNum(107,5,count++);	
     }
 #endif
-    u8 value=67;
+    int val1=10,val2=13;
     u8 str[100];
-		sprintf(str,"this is the test %X",value);
+		sprintf(str,"   RPW   Flow  %d.%d   %d.%d  kjskafjksadfjkhsakfhksjfksjdflkjsdlfj 0   6       ",val1,val2,val2,val1);
 		//str[16]='\0';
     ssd1306_init();
     drawstring(0,0,str);
     display();
 		while(1){
+			val1++;
+			val2++;
+			sprintf(str,"   RPW   Flow  %d.%d   %d.%d  kjskafjksadfjkhsakfhksjfksjdflkjsdlfj 0   6  jkasdfjkhskadfhkjshdfjhskadfhskdfhkjhkjshafjkhsdfjhksjdf     ",val1,val2,val2,val1);
+			drawstring(0,0,str);
+			display();
+			Delay(100000);
+			if(val1==99)
+				val1=10;
+			if(val2==99)
+				val2=13;
 		}
 }
