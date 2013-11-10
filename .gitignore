@@ -1,0 +1,22 @@
+103 PROJECT.map
+103 PROJECT.plg
+103 PROJECT.uvgui.dillon.min
+103 PROJECT.uvgui.dillon_min.bak
+103 PROJECT.uvopt
+103 PROJECT.uvproj
+103 PROJECT_Target 1.dep
+103 PROJECT_uvopt.bak
+103 PROJECT_uvproj.bak
+ExtDll.iex
+JLinkLog.txt
+JLinkSettings.ini
+Release/
+Target 1.BAT
+eeprom/
+lcd/LM096-bak.c
+lcd/fonts.h
+lcd/stm32_2.8_lcd.c
+lcd/stm32_2.8_lcd.h
+lcd/stm32f10x_it.c
+lcd/stm32f10x_it.h
+startup_stm32f10x_hd.lst
