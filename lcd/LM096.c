@@ -1,9 +1,10 @@
 #include "stm32f10x.h"
-#include "glcdfont.c"
+#include "numfont.h"
 #include "LM096.h"
 #define SSD1306_LCDWIDTH                    128
 #define SSD1306_LCDHEIGHT                   64
 #define I2C1_DR_Address                     0x40005410
+# define _BV(bit) (1<<(bit))
 I2C_InitTypeDef  I2C_InitStructure;
 void myDelay(__IO uint32_t nCount)
 {
@@ -79,7 +80,7 @@ void ssd1306_init() {
     }
     clear();
 }
-
+#if 0
 void  drawchar(uint8_t x, uint8_t line, uint8_t c) {
     unsigned char i;
     if((line >= SSD1306_LCDHEIGHT/8) || (x >= (SSD1306_LCDWIDTH - 6)))
@@ -106,6 +107,7 @@ void  drawchar2(uint8_t x, uint8_t line, uint8_t c) {
         x++;
     }
 }
+
 void drawstring(uint8_t x, uint8_t line, char *c) {
     while (c[0] != 0) {
 				if(line==2 || line==0)
@@ -132,7 +134,143 @@ void drawstring(uint8_t x, uint8_t line, char *c) {
     }
 
 }
+#endif
+void setpixel(uint8_t x, uint8_t y) {
+  if ((x >= SSD1306_LCDWIDTH) || (y >= SSD1306_LCDHEIGHT))
+    return;
 
+  // x is which column
+  //if (color == WHITE) 
+    buffer[x+ (y/8)*SSD1306_LCDWIDTH] |= _BV((y%8));  
+  //else
+    //buffer[x+ (y/8)*SSD1306_LCDWIDTH] &= ~_BV((y%8)); 
+}
+void drawline(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1) {
+  uint8_t steep = abs(y1 - y0) > abs(x1 - x0);
+    uint8_t dx, dy,tmp;
+	int8_t err;
+	int8_t ystep;
+  if (steep) {
+    //swap(x0, y0);
+    //swap(x1, y1);
+	tmp=x0;
+	x0=y0;
+	y0=tmp;
+	tmp=x1;
+	x1=y1;
+	y1=tmp;
+  }
+
+  if (x0 > x1) {
+    //swap(x0, x1);
+    //swap(y0, y1);
+	tmp=x0;
+	x0=x1;
+	x1=tmp;
+	tmp=y0;
+	y0=y1;
+	y1=tmp;
+  }
+
+
+  dx = x1 - x0;
+  dy = abs(y1 - y0);
+
+  err = dx / 2;
+  
+
+  if (y0 < y1) {
+    ystep = 1;
+  } else {
+    ystep = -1;}
+
+  for (; x0<x1; x0++) {
+    if (steep) {
+      setpixel(y0, x0);
+    } else {
+      setpixel(x0, y0);
+    }
+    err -= dy;
+    if (err < 0) {
+      y0 += ystep;
+      err += dx;
+    }
+  }
+}
+
+// filled rectangle
+void fillrect(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
+
+  // stupidest version - just pixels - but fast with internal buffer!
+  uint8_t i,j;
+  for (i=x; i<x+w; i++) {
+    for (j=y; j<y+h; j++) {
+      setpixel(i, j);
+    }
+  }
+}
+void draw(uint8_t bat1,uint8_t bat2,char *c)
+{
+	int x=0,line=0,x1=0,i,j;
+	if(bat1>100||bat1<0||bat2>100||bat2<0||strlen(c)!=7)
+		return ;
+	//draw batt icon
+	drawline(0,32,28,32);
+	drawline(28,32,28,36);
+	drawline(28,36,32,36);
+	drawline(32,36,32,44);
+	drawline(32,44,28,44);
+	drawline(28,44,28,48);
+	drawline(28,48,0,48);
+	drawline(0,48,0,32);
+	fillrect(0,32,(uint8_t)(bat1*28/100),16);
+	drawline(0,48,28,48);
+	drawline(28,48,28,52);
+	drawline(28,52,32,52);
+	drawline(32,52,32,60);
+	drawline(32,60,28,60);
+	drawline(28,60,28,64);
+	drawline(28,64,0,64);
+	drawline(0,64,0,48);
+	fillrect(0,48,(uint8_t)(bat1*28/100),16);
+	while(c[0]!=0)
+	{
+		//need to draw char ,like 3300 4.7
+		if(c[0]!='.')
+		{
+			for(j=0;j<4;j++)
+			{
+				x=x1;
+				for(i=j*32;i<32*(j+1);i++)
+				{
+					buffer[x+((line+j)*128)]=font32[(c[0]-48)*128+i];
+					x++;
+				}
+			}
+		}
+		else
+		{
+			for(j=0;j<4;j++)
+			{
+				x=x1;
+				for(i=j*32;i<32*(j+1);i++)
+				{
+					buffer[x+((line+j)*128)]=font32[1280+i];
+					x++;
+				}
+			}
+		}
+		c++;
+		x1=x1+33;
+		if(x1+33>=SSD1306_LCDWIDTH)
+		{
+			x1=0;
+			line=line+4;
+		}
+		if(line==4)//igore batt zero
+			x1=33;
+	}	
+}
 void display(void) {
     int i,j;
     for(j=0;j<sizeof(draw_reg);j++)
