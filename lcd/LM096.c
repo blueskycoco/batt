@@ -135,12 +135,15 @@ void drawstring(uint8_t x, uint8_t line, char *c) {
 
 }
 #endif
-void setpixel(uint8_t x, uint8_t y) {
+void setpixel(uint8_t x, uint8_t y,bool clear) {
   if ((x >= SSD1306_LCDWIDTH) || (y >= SSD1306_LCDHEIGHT))
     return;
 
   // x is which column
   //if (color == WHITE) 
+	if(clear)
+		buffer[x+ (y/8)*SSD1306_LCDWIDTH] = 0;  
+	else
     buffer[x+ (y/8)*SSD1306_LCDWIDTH] |= _BV((y%8));  
   //else
     //buffer[x+ (y/8)*SSD1306_LCDWIDTH] &= ~_BV((y%8)); 
@@ -186,9 +189,9 @@ void drawline(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1) {
 
   for (; x0<x1; x0++) {
     if (steep) {
-      setpixel(y0, x0);
+      setpixel(y0, x0,FALSE);
     } else {
-      setpixel(x0, y0);
+      setpixel(x0, y0,FALSE);
     }
     err -= dy;
     if (err < 0) {
@@ -199,13 +202,13 @@ void drawline(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1) {
 }
 
 // filled rectangle
-void fillrect(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
+void fillrect(uint8_t x, uint8_t y, uint8_t w, uint8_t h,bool clear) {
 
   // stupidest version - just pixels - but fast with internal buffer!
   uint8_t i,j;
   for (i=x; i<x+w; i++) {
     for (j=y; j<y+h; j++) {
-      setpixel(i, j);
+      setpixel(i, j,clear);
     }
   }
 }
@@ -215,60 +218,92 @@ void draw(uint8_t bat1,uint8_t bat2,char *c)
 	if(bat1>100||bat1<0||bat2>100||bat2<0||strlen(c)!=7)
 		return ;
 	//draw batt icon
-	drawline(0,32,28,32);
+	if(bat1==1)
+	{
+		fillrect(2,31,28,15,TRUE);
+	}
+	if(bat2==1)
+	{
+		fillrect(2,48,28,15,TRUE);
+	}
+	drawline(1,32,28,32);
 	drawline(28,32,28,36);
 	drawline(28,36,32,36);
-	drawline(32,36,32,44);
-	drawline(32,44,28,44);
-	drawline(28,44,28,48);
-	drawline(28,48,0,48);
-	drawline(0,48,0,32);
-	fillrect(0,32,(uint8_t)(bat1*28/100),16);
-	drawline(0,48,28,48);
-	drawline(28,48,28,52);
+	drawline(32,36,32,43);
+	drawline(32,43,28,43);
+	drawline(28,43,28,47);
+	drawline(28,47,1,47);
+	drawline(1,47,1,32);
+	fillrect(1,32,(uint8_t)(bat1*28/100),15,FALSE);
+	drawline(1,49,28,49);
+	drawline(28,49,28,52);
 	drawline(28,52,32,52);
-	drawline(32,52,32,60);
-	drawline(32,60,28,60);
-	drawline(28,60,28,64);
-	drawline(28,64,0,64);
-	drawline(0,64,0,48);
-	fillrect(0,48,(uint8_t)(bat1*28/100),16);
+	drawline(32,52,32,59);
+	drawline(32,59,28,59);
+	drawline(28,59,28,63);
+	drawline(28,63,1,63);
+	drawline(1,63,1,49);
+	fillrect(1,49,(uint8_t)(bat2*28/100),15,FALSE);
 	while(c[0]!=0)
 	{
 		//need to draw char ,like 3300 4.7
 		if(c[0]!='.')
 		{
-			for(j=0;j<4;j++)
-			{
-				x=x1;
-				for(i=j*32;i<32*(j+1);i++)
-				{
-					buffer[x+((line+j)*128)]=font32[(c[0]-48)*128+i];
-					x++;
-				}
+			x=x1;
+			for(j=0;j<32;j++)
+			{				
+					buffer[x+((line)*128)]=font32[(c[0]-48)*128+j];
+					x++;				
+			}
+			for(j=0;j<32;j++)
+			{				
+					buffer[x+((line+1)*128)-32]=font32[(c[0]-48)*128+32+j];
+					x++;				
+			}
+			for(j=0;j<32;j++)
+			{				
+					buffer[x+((line+2)*128)-64]=font32[(c[0]-48)*128+64+j];
+					x++;				
+			}
+			for(j=0;j<32;j++)
+			{				
+					buffer[x+((line+3)*128)-96]=font32[(c[0]-48)*128+96+j];
+					x++;				
 			}
 		}
 		else
 		{
-			for(j=0;j<4;j++)
-			{
-				x=x1;
-				for(i=j*32;i<32*(j+1);i++)
-				{
-					buffer[x+((line+j)*128)]=font32[1280+i];
-					x++;
-				}
+			x=x1;
+			for(j=0;j<32;j++)
+			{				
+					buffer[x+((line)*128)]=font32[1280+j];
+					x++;				
+			}
+			for(j=0;j<32;j++)
+			{				
+					buffer[x+((line+1)*128)-32]=font32[1280+32+j];
+					x++;				
+			}
+			for(j=0;j<32;j++)
+			{				
+					buffer[x+((line+2)*128)-64]=font32[1280+64+j];
+					x++;				
+			}
+			for(j=0;j<32;j++)
+			{				
+					buffer[x+((line+3)*128)-96]=font32[1280+96+j];
+					x++;				
 			}
 		}
-		c++;
-		x1=x1+33;
-		if(x1+33>=SSD1306_LCDWIDTH)
+		x1=x1+31;
+		if(x1+31>SSD1306_LCDWIDTH)
 		{
-			x1=0;
+			x1=33;
 			line=line+4;
 		}
-		if(line==4)//igore batt zero
-			x1=33;
+		
+		c++;
+		
 	}	
 }
 void display(void) {
