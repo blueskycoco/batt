@@ -6,9 +6,13 @@ main()
     int val1=0,val2=1,val3=2,val4=3,val5=4,val6=5;
     uint8_t bat1=20,bat2=0;
     u8 str[100];
+	/*将数字信息填充到str里*/
     sprintf(str,"%d%d%d%d%d.%d",val1,val2,val3,val4,val5,val6);
+	/*初始化ssd1306*/
     ssd1306_init();
+	/*绘制缓冲区，包含电池信息和数字信息*/
     draw(bat1,bat2,str);
+	/*打开显示*/
     display();
     while(1){
         val1++;
