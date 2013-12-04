@@ -84,7 +84,6 @@ struct PowerSource{
     //其它电池中有的数据
 }; 
 #define PS_NUM 3
-typedef struct PowerMan PowerMan_t;
 struct PowerMan{
     PowerSource_t ps[PS_NUM];
     int16_t currentPs;              //当前使用那个电源。   范围：0,1,...,PS_NUM-1.
@@ -92,6 +91,7 @@ struct PowerMan{
     int16_t minVoltage;             //最小电压
     int16_t maxVoltage;             //最大电压
 };
+typedef struct PowerMan PowerMan_t;
 /*power系统的初始化*/
 uint8_t power_man_init(void);
 void power_man_timer_interrupt(PowerMan_t * p);

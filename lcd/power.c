@@ -16,6 +16,7 @@ static uint8_t reserved[] =
                             0x00};
 uint8_t address_pool[SMBUS_ADDRESS_SIZE];
 uint8_t	g_i2c_addr[3];
+PowerMan_t pm = {0};
 I2C_InitTypeDef  I2C_InitStructure;
 /*延时函数*/
 void myDelay(__IO uint32_t nCount)
@@ -26,11 +27,14 @@ void myDelay(__IO uint32_t nCount)
 void pin_init()
 {
     GPIO_InitTypeDef GPIO_InitStructure;
+    ADC_InitTypeDef ADC_InitStructure;
     /* Enable GPIOB,E,F,G clock */
+    RCC_ADCCLKConfig(RCC_PCLK2_Div4); 
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOF, ENABLE);
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOG, ENABLE);
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC3, ENABLE);
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
     /* Enable I2C2 clock */
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C2, ENABLE);
@@ -74,7 +78,18 @@ void pin_init()
     GPIO_Init(BATS_C_CHARGE_STAT_PORT, &GPIO_InitStructure);
     GPIO_InitStructure.GPIO_Pin =  BATS_SEL_C_PIN;
     GPIO_Init(BATS_SEL_C_PORT, &GPIO_InitStructure);
-
+    //ADC channel config
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+    GPIO_InitStructure.GPIO_Pin =  BATS_AB_MON_I_PIN;
+    GPIO_Init(BATS_AB_MON_I_PORT, &GPIO_InitStructure);
+    GPIO_InitStructure.GPIO_Pin =  V3P3_MON_V_PIN;
+    GPIO_Init(V3P3_MON_V_PORT, &GPIO_InitStructure);
+    GPIO_InitStructure.GPIO_Pin =  BATS_A_V_MON_PIN;
+    GPIO_Init(BATS_A_V_MON_PORT, &GPIO_InitStructure);
+    GPIO_InitStructure.GPIO_Pin =  BATS_B_V_MON_PIN;
+    GPIO_Init(BATS_B_V_MON_PORT, &GPIO_InitStructure);
+    GPIO_InitStructure.GPIO_Pin =  BATS_C_V_MON_PIN;
+    GPIO_Init(BATS_C_V_MON_PORT, &GPIO_InitStructure);
     //I2C Config
     I2C_SoftwareResetCmd(I2C2,ENABLE);
     I2C_SoftwareResetCmd(I2C2,DISABLE);
@@ -87,6 +102,35 @@ void pin_init()
     I2C_InitStructure.I2C_ClockSpeed = 50000;
     I2C_Init(I2C2, &I2C_InitStructure);
 	I2C_CalculatePEC(I2C2, ENABLE);
+
+    ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;
+    ADC_InitStructure.ADC_ScanConvMode = DISABLE;
+    ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
+    ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
+    ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
+    ADC_InitStructure.ADC_NbrOfChannel = 1;
+    ADC_Init(ADC3, &ADC_InitStructure);
+    ADC_Cmd(ADC3, ENABLE);
+    ADC_ResetCalibration(ADC3);
+    while(ADC_GetResetCalibrationStatus(ADC3));
+
+    ADC_StartCalibration(ADC3);
+    while(ADC_GetCalibrationStatus(ADC3));
+
+}
+
+uint16_t read_adc(uint8_t channel)
+{
+    uint16_t value=0;
+
+    ADC_RegularChannelConfig(ADC3, channel, 1, ADC_SampleTime_7Cycles5);
+    ADC_SoftwareStartConvCmd(ADC3, ENABLE);
+
+    while(ADC_GetFlagStatus(ADC3,ADC_FLAG_EOC)==RESET);
+
+    value=ADC_GetConversionValue(ADC3);
+
+    return value;
 }
 uint8_t choose_addr(u8 * pool)
 {
@@ -98,41 +142,53 @@ uint8_t choose_addr(u8 * pool)
 	}
 	return 0xff;
 }
+bool check_timeout(int flag)
+{
+    uint32_t timeout=100000;
+    while(!I2C_CheckEvent(I2C2,flag)&&timeout)
+        timeout--;
+    if(timeout)
+        return true;
+    else
+        return false;
+}
 bool i2c_smbus_write_byte(uint8_t addr,uint8_t command)
 {
 	I2C_GenerateSTART(I2C2, ENABLE);
-    while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_MODE_SELECT));  
+    if(!check_timeout(I2C_EVENT_MASTER_MODE_SELECT) return false;  
     
 	I2C_Send7bitAddress(I2C2, addr<<1, I2C_Direction_Transmitter);
-    while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)); 
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
     
     I2C_SendData(I2C2,command);
-    while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_BYTE_TRANSMITTED));  	
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
     
 	I2C_TransmitPEC(I2C2, ENABLE);
-    while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_BYTE_TRANSMITTED));  
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
     
 	I2C_GenerateSTOP(I2C2, ENABLE);
+
+    return true;
 }
 bool i2c_smbus_read_block_data(uint8_t addr, uint8_t command, uint8_t *blk)
 {
 	I2C_GenerateSTART(I2C2, ENABLE);
-    while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_MODE_SELECT));  
+    if(!check_timeout(I2C_EVENT_MASTER_MODE_SELECT) return false;  
     
 	I2C_Send7bitAddress(I2C2, addr<<1, I2C_Direction_Transmitter);
-    while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)); 
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
     
     I2C_SendData(I2C2,command);
-    while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_BYTE_TRANSMITTED));  	
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
     
 	I2C_GenerateSTART(I2C2, ENABLE);
-    while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_MODE_SELECT));  
+    if(!check_timeout(I2C_EVENT_MASTER_MODE_SELECT) return false;  
     
 	I2C_Send7bitAddress(I2C2, addr<<1, I2C_Direction_Receiver);
-    while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)); 
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
 	for(i=0;i<19;i++)
 	{
-		while(I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_BYTE_RECEIVED))
+        if(!check_timeout(I2C_EVENT_MASTER_BYTE_RECEIVED) return false;  
 		blk[i] = I2C_ReceiveData(I2C2);
 	}
 	
@@ -141,29 +197,31 @@ bool i2c_smbus_read_block_data(uint8_t addr, uint8_t command, uint8_t *blk)
 	I2C_GenerateSTOP(I2C2, ENABLE);
 	
 	I2C_AcknowledgeConfig(I2C2, ENABLE);
+    return true;
 }
 bool i2c_smbus_write_block_data(uint8_t addr, uint8_t command, uint8_t len,uint8_t *blk)
 {
 	I2C_GenerateSTART(I2C2, ENABLE);
-    while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_MODE_SELECT));  
+    if(!check_timeout(I2C_EVENT_MASTER_MODE_SELECT) return false;  
     
 	I2C_Send7bitAddress(I2C2, addr<<1, I2C_Direction_Transmitter);
-    while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)); 
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
     
     I2C_SendData(I2C2,command);
-    while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_BYTE_TRANSMITTED));  	
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
     
 	for(i=0;i<len;i++)
 	{
 		I2C_SendData(I2C2,blk[i]);
-		while(I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_BYTE_TRANSMITTED))
+        if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
 	}
 	
 	I2C_TransmitPEC(I2C2, ENABLE);
-    while(!I2C_CheckEvent(I2C2, I2C_EVENT_MASTER_BYTE_TRANSMITTED));  
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
 	
 	I2C_GenerateSTOP(I2C2, ENABLE);
 	
+    return true;
 }
 /*为三块智能电池分别分配iic地址,返回值代表smbus上有几块电池，并填充他们的iic地址到g_i2c_addr数组里*/
 uint8_t batt_arp()
@@ -245,4 +303,14 @@ uint8_t batt_arp()
     } /* while 1  */
 
     return found;
+}
+
+
+uint8_t power_man_init(void)
+{
+    pin_init();
+    /*batt_arp 用于轮训系统内存在几个智能电池*/
+    batt_arp();
+    
+    return 1;
 }
