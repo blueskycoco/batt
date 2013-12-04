@@ -2,7 +2,7 @@
 #define __POWER_H
 
 #ifdef __cplusplus
- extern "C" {
+extern "C" {
 #endif
 #define BATS_SEL_C_PIN              (GPIO_Pin_2)
 #define BATS_SEL_C_PORT             (GPIOE)
@@ -61,8 +61,40 @@
 #define ARP_RESERVED                1
 #define ARP_BUSY                    2
 #define I2C_SMBUS_BLOCK_MAX         32
+typedef enum PowerType PowerType_t{
+    notDefined = 0,                 // 未定义
+    adapter    = 1,                 // 适配器
+    batteryLi  = 2,                 // 锂电池
+    batteryDry = 3,                 // 干电池
+    unknown    = 4,                 // 未知类型
+} ;
+typedef struct PowerSource PowerSource_t;
+struct PowerSource{
+    unsigned long   ID;             //电源的序列号
+    PowerType_t type;               //电源类型
+    int16_t     voltage;            //电源当前电压，单位V，前8个bit是整数部分 
+    int16_t     current;            //电源当前电流，单位A，前8个bit是整数部分 
+    int16_t     power;              //电源当前功率，单位W，前8个bit是整数部分 
+    int16_t     available;          //电源是否有效 1 有效 0 无效
+    int16_t     energyAll;          //电池总容量(单位：瓦时)，前12个bit是整数部分 
+    int16_t     energyNow;          //电池当前电量（单位：瓦时），前12个bit是整数部分
+    int16_t     cycleNum;           //电池已经充放电循环了多少次，16个bit都是整数部分
+    int16_t     thisWorkTime;       //在该次放电中的累积时间，单位分钟， 16个bit都是整数部分，整数饱和不能溢出
+    //...
+    //其它电池中有的数据
+}; 
+#define PS_NUM 3
+typedef struct PowerMan PowerMan_t;
+struct PowerMan{
+    PowerSource_t ps[PS_NUM];
+    int16_t currentPs;              //当前使用那个电源。   范围：0,1,...,PS_NUM-1.
+    int16_t power;                  //电源当前功率
+    int16_t minVoltage;             //最小电压
+    int16_t maxVoltage;             //最大电压
+};
 /*power系统的初始化*/
-void power_init(void);
+uint8_t power_man_init(void);
+void power_man_timer_interrupt(PowerMan_t * p);
 #ifdef __cplusplus
 }
 #endif
