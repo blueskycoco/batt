@@ -15,7 +15,8 @@ static uint8_t reserved[] =
                             /* Must end in 0 which is also reserved */
                             0x00};
 uint8_t address_pool[SMBUS_ADDRESS_SIZE];
-uint8_t	g_i2c_addr[3];
+uint8_t	g_i2c_addr[2];/*系统中最多同时存在两块智能电池,g_i2c_addr[0]固定为电池A即ADC3_IN6，g_i2c_addr[1]固定为电池B即ADC3_IN7*/
+uint8_t g_batt_li_num=0;
 PowerMan_t pm = {0};
 I2C_InitTypeDef  I2C_InitStructure;
 /*延时函数*/
@@ -258,7 +259,6 @@ uint8_t batt_arp()
 			return (found);
 		}
 		
-		found++;
 		/*检测这个电池的slave addr*/           
 		addr = blk[16];
 		if(addr != 0xFF) 
@@ -295,22 +295,100 @@ uint8_t batt_arp()
 		{	
 			/*更新地址池里这个电池的i2c状态为已分配*/
 			address_pool[addr] = ARP_BUSY;
-			g_i2c_addr[found]=addr;
+			if(g_i2c_addr[found]!=0)
+                found++;
+            g_i2c_addr[found]=addr;
 		}
 		else
 			return 0;
-		
+	    found++;	
     } /* while 1  */
 
     return found;
 }
 
+uint8_t power_available(uint8_t channel)
+{
+    if(pm.ps[channel].volatge>pm.minVolatge && pm.ps[channel].volatge<pm.maxVolatge)
+        return 1;
+    else
+        return 0;
+}
+uint8_t select_power()
+{
+    if(pm.ps[0].available&&pm.ps[1].available)
+    {
+        if(pm.ps[0].type==POWER_ADAPTER)
+        {
+            if(pm.ps[1].type==POWER_BATTERY_LI)
+                return 0;
+            else
+            {
+                if(pm.ps[0].volatge>pm.ps[1].volatge)
+                    return 1;
+                else
+                    return 0;
+            }
+        }
+        else
+        {
+            if(pm.ps[1].type==POWER_ADAPTER)
+                return 1;
+            else
+            {
+                if(pm.ps[0].volatge>pm.ps[1].volatge)
+                    return 1;
+                else
+                    return 0;
+            }
 
-uint8_t power_man_init(void)
+        }
+    }
+    else
+    {
+        if(pm.ps[0].available)
+            return 0;
+        if(pm.ps[1].available)
+            return 1;
+        return 2;
+    }
+}
+uint8_t power_man_init(int16_t min_vol,int16_t max_vol)
 {
     pin_init();
     /*batt_arp 用于轮训系统内存在几个智能电池*/
-    batt_arp();
-    
+    g_i2c_addr[0]=0;
+    g_i2c_addr[1]=0;
+    pm.minVolatge=min_vol;
+    pm.maxVolatge=max_vol;
+    g_batt_li_num=batt_arp();
+    if(g_batt_li_num==0)
+    {/*系统中无智能电池*/
+        pm.ps[0].type=POWER_ADAPTER;
+        pm.ps[0].voltage=read_adc(ADC_Channel_6);
+        pm.ps[0].available=power_available(0);
+        pm.ps[1].type=POWER_ADAPTER;
+        pm.ps[1].voltage=read_adc(ADC_Channel_7);
+        pm.ps[1].available=power_available(1);
+        pm.ps[2].type=POWER_BATTERY_DRY;
+        pm.ps[2].voltage=read_adc(ADC_Channel_8);
+        pm.ps[2].available=power_available(2);
+        pm.currentPs=select_power();
+        pm.power=read_adc(ADC_Channel_4)*pm.ps[pm.currentPs].volatge;
+    }
+    }
+    else if(g_batt_li_num==1)
+    {/*系统中有一个智能电池*/
+
+    }
+    else if(g_batt_li_num==2)
+    {/*系统中有两个智能电池*/
+
+    }
+    else
+    {
+
+    }
+
     return 1;
 }

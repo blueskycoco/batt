@@ -62,11 +62,11 @@ extern "C" {
 #define ARP_BUSY                    2
 #define I2C_SMBUS_BLOCK_MAX         32
 typedef enum PowerType PowerType_t{
-    notDefined = 0,                 // 未定义
-    adapter    = 1,                 // 适配器
-    batteryLi  = 2,                 // 锂电池
-    batteryDry = 3,                 // 干电池
-    unknown    = 4,                 // 未知类型
+    POWER_NOT_DEFINED = 0,                 // 未定义
+    POWER_ADAPTER    = 1,                 // 适配器
+    POWER_BATTERY_LI  = 2,                 // 锂电池
+    POWER_BATTERY_DRY = 3,                 // 干电池
+    POWER_UNKNOWN    = 4,                 // 未知类型
 } ;
 typedef struct PowerSource PowerSource_t;
 struct PowerSource{
