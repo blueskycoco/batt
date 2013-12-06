@@ -1,6 +1,6 @@
 #ifndef __POWER_H
 #define __POWER_H
-
+#include "stm32f10x.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -61,13 +61,13 @@ extern "C" {
 #define ARP_RESERVED                1
 #define ARP_BUSY                    2
 #define I2C_SMBUS_BLOCK_MAX         32
-typedef enum PowerType PowerType_t{
+typedef enum PowerType {
     POWER_NOT_DEFINED = 0,                 // 未定义
     POWER_ADAPTER    = 1,                 // 适配器
     POWER_BATTERY_LI  = 2,                 // 锂电池
     POWER_BATTERY_DRY = 3,                 // 干电池
     POWER_UNKNOWN    = 4,                 // 未知类型
-} ;
+}PowerType_t;
 typedef struct PowerSource PowerSource_t;
 struct PowerSource{
     unsigned long   ID;             //电源的序列号
@@ -93,7 +93,7 @@ struct PowerMan{
 };
 typedef struct PowerMan PowerMan_t;
 /*power系统的初始化*/
-uint8_t power_man_init(void);
+uint8_t power_man_init(int16_t min_vol,int16_t max_vol);
 void power_man_timer_interrupt(PowerMan_t * p);
 #ifdef __cplusplus
 }

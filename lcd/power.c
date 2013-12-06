@@ -62,17 +62,17 @@ void pin_init()
     GPIO_Init(BATS_SEL_STAA_PORT, &GPIO_InitStructure);
     GPIO_InitStructure.GPIO_Pin =  BATS_C_CHARGE_CTL_PIN;
     GPIO_Init(BATS_C_CHARGE_CTL_PORT, &GPIO_InitStructure);
-    GPIO_InitStructure.GPIO_Pin =  BATS_C_CHARGE_FAULT_PIN;
-    GPIO_Init(BATS_C_CHARGE_FAULT_PORT, &GPIO_InitStructure);
-    GPIO_InitStructure.GPIO_Pin =  BATS_C_CHARGE_CHRG_PIN;
-    GPIO_Init(BATS_C_CHARGE_CHRG_PORT, &GPIO_InitStructure);
+    GPIO_InitStructure.GPIO_Pin =  BATS_ABC_CHARGE_FAULT_PIN;
+    GPIO_Init(BATS_ABC_CHARGE_FAULT_PORT, &GPIO_InitStructure);
+    GPIO_InitStructure.GPIO_Pin =  BATS_ABC_CHARGE_CHRG_PIN;
+    GPIO_Init(BATS_ABC_CHARGE_CHRG_PORT, &GPIO_InitStructure);
     GPIO_InitStructure.GPIO_Pin =  PG_3V3_PIN;
     GPIO_Init(PG_3V3_PORT, &GPIO_InitStructure);
     GPIO_InitStructure.GPIO_Pin =  BATS_A_CHARGE_STAT_PIN;
     GPIO_Init(BATS_A_CHARGE_STAT_PORT, &GPIO_InitStructure);
     GPIO_InitStructure.GPIO_Pin =  BATS_A_CHARGE_CTL_PIN;
     GPIO_Init(BATS_A_CHARGE_CTL_PORT, &GPIO_InitStructure);
-    GPIO_InitStructure.GPIO_Pin =  BATS_B_CHARGE_STAT_PIN
+    GPIO_InitStructure.GPIO_Pin =  BATS_B_CHARGE_STAT_PIN;
     GPIO_Init(BATS_B_CHARGE_STAT_PORT, &GPIO_InitStructure);
     GPIO_InitStructure.GPIO_Pin =  BATS_B_CHARGE_CTL_PIN;
     GPIO_Init(BATS_B_CHARGE_CTL_PORT, &GPIO_InitStructure);
@@ -150,47 +150,48 @@ bool check_timeout(int flag)
     while(!I2C_CheckEvent(I2C2,flag)&&timeout)
         timeout--;
     if(timeout)
-        return true;
+        return TRUE;
     else
-        return false;
+        return FALSE;
 }
 bool i2c_smbus_write_byte(uint8_t addr,uint8_t command)
 {
 	I2C_GenerateSTART(I2C2, ENABLE);
-    if(!check_timeout(I2C_EVENT_MASTER_MODE_SELECT) return false;  
+    if(!check_timeout(I2C_EVENT_MASTER_MODE_SELECT)) return FALSE;  
     
 	I2C_Send7bitAddress(I2C2, addr<<1, I2C_Direction_Transmitter);
-    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED)) return FALSE;  
     
     I2C_SendData(I2C2,command);
-    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED)) return FALSE;  
     
 	I2C_TransmitPEC(I2C2, ENABLE);
-    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED)) return FALSE;  
     
 	I2C_GenerateSTOP(I2C2, ENABLE);
 
-    return true;
+    return TRUE;
 }
-bool i2c_smbus_read_block_data(uint8_t addr, uint8_t command, uint18_t len,uint8_t *blk)
+bool i2c_smbus_read_block_data(uint8_t addr, uint8_t command, uint8_t len,uint8_t *blk)
 {
+	int i;
 	I2C_GenerateSTART(I2C2, ENABLE);
-    if(!check_timeout(I2C_EVENT_MASTER_MODE_SELECT) return false;  
+    if(!check_timeout(I2C_EVENT_MASTER_MODE_SELECT)) return FALSE;  
     
 	I2C_Send7bitAddress(I2C2, addr<<1, I2C_Direction_Transmitter);
-    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED)) return FALSE;  
     
     I2C_SendData(I2C2,command);
-    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED)) return FALSE;  
     
 	I2C_GenerateSTART(I2C2, ENABLE);
-    if(!check_timeout(I2C_EVENT_MASTER_MODE_SELECT) return false;  
+    if(!check_timeout(I2C_EVENT_MASTER_MODE_SELECT)) return FALSE;  
     
 	I2C_Send7bitAddress(I2C2, addr<<1, I2C_Direction_Receiver);
-    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED)) return FALSE;  
 	for(i=0;i<len;i++)
 	{
-        if(!check_timeout(I2C_EVENT_MASTER_BYTE_RECEIVED) return false;  
+        if(!check_timeout(I2C_EVENT_MASTER_BYTE_RECEIVED)) return FALSE;  
 		blk[i] = I2C_ReceiveData(I2C2);
 	}
 	
@@ -199,31 +200,32 @@ bool i2c_smbus_read_block_data(uint8_t addr, uint8_t command, uint18_t len,uint8
 	I2C_GenerateSTOP(I2C2, ENABLE);
 	
 	I2C_AcknowledgeConfig(I2C2, ENABLE);
-    return true;
+    return TRUE;
 }
 bool i2c_smbus_write_block_data(uint8_t addr, uint8_t command, uint8_t len,uint8_t *blk)
 {
+	int i;
 	I2C_GenerateSTART(I2C2, ENABLE);
-    if(!check_timeout(I2C_EVENT_MASTER_MODE_SELECT) return false;  
+    if(!check_timeout(I2C_EVENT_MASTER_MODE_SELECT)) return FALSE;  
     
 	I2C_Send7bitAddress(I2C2, addr<<1, I2C_Direction_Transmitter);
-    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED)) return FALSE;  
     
     I2C_SendData(I2C2,command);
-    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED)) return FALSE;  
     
 	for(i=0;i<len;i++)
 	{
 		I2C_SendData(I2C2,blk[i]);
-        if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
+        if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED)) return FALSE;  
 	}
 	
 	I2C_TransmitPEC(I2C2, ENABLE);
-    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
+    if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED)) return FALSE;  
 	
 	I2C_GenerateSTOP(I2C2, ENABLE);
 	
-    return true;
+    return TRUE;
 }
 int16_t vol_abs(int16_t v1,int16_t v2)
 {
@@ -239,12 +241,12 @@ bool read_batt_info()
     {
 
         i2c_smbus_read_block_data(g_i2c_addr[0],0x09,2,(uint8_t *)&vol1);
-        if(vol_abs(vol1-read_adc(ADC_Channel_6))>vol_abs(vol1-read_adc(ADC_Channel_7)))
+        if(vol_abs(vol1,read_adc(ADC_Channel_6))>vol_abs(vol1,read_adc(ADC_Channel_7)))
         {
             pm.ps[1].type=POWER_BATTERY_LI;
-            pm.ps[1].volatge=vol1;
+            pm.ps[1].voltage=vol1;
             i2c_smbus_read_block_data(g_i2c_addr[0],0x0a,2,(uint8_t *)&(pm.ps[1].current));
-            pm.ps[1].power=pm.ps[1].current*pm.ps[1].volatge;
+            pm.ps[1].power=pm.ps[1].current*pm.ps[1].voltage;
             i2c_smbus_read_block_data(g_i2c_addr[0],0x10,2,(uint8_t *)&(pm.ps[1].energyAll));
             i2c_smbus_read_block_data(g_i2c_addr[0],0x0f,2,(uint8_t *)&(pm.ps[1].energyNow));
             i2c_smbus_read_block_data(g_i2c_addr[0],0x17,2,(uint8_t *)&(pm.ps[1].cycleNum));
@@ -252,9 +254,9 @@ bool read_batt_info()
         }else
         {
             pm.ps[0].type=POWER_BATTERY_LI;
-            pm.ps[0].volatge=vol1;
+            pm.ps[0].voltage=vol1;
             i2c_smbus_read_block_data(g_i2c_addr[0],0x0a,2,(uint8_t *)&(pm.ps[0].current));
-            pm.ps[0].power=pm.ps[0].current*pm.ps[0].volatge;
+            pm.ps[0].power=pm.ps[0].current*pm.ps[0].voltage;
             i2c_smbus_read_block_data(g_i2c_addr[0],0x10,2,(uint8_t *)&(pm.ps[0].energyAll));
             i2c_smbus_read_block_data(g_i2c_addr[0],0x0f,2,(uint8_t *)&(pm.ps[0].energyNow));
             i2c_smbus_read_block_data(g_i2c_addr[0],0x17,2,(uint8_t *)&(pm.ps[0].cycleNum));
@@ -265,7 +267,7 @@ bool read_batt_info()
     {
         i2c_smbus_read_block_data(g_i2c_addr[0],0x09,2,(uint8_t *)&vol1);
         i2c_smbus_read_block_data(g_i2c_addr[1],0x09,2,(uint8_t *)&vol2);
-        if(vol_abs(vol1-read_adc(ADC_Channel_6))>vol_abs(vol2-read_adc(ADC_Channel_6)))
+        if(vol_abs(vol1,read_adc(ADC_Channel_6))>vol_abs(vol2,read_adc(ADC_Channel_6)))
         {
             uint8_t tmp;
             uint16_t tmp1;
@@ -276,23 +278,23 @@ bool read_batt_info()
             vol1=vol2;
             vol2=tmp1;
         }
-        pm.ps[0].volatge=vol1;
+        pm.ps[0].voltage=vol1;
         i2c_smbus_read_block_data(g_i2c_addr[0],0x0a,2,(uint8_t *)&(pm.ps[0].current));
-        pm.ps[0].power=pm.ps[0].current*pm.ps[0].volatge;
+        pm.ps[0].power=pm.ps[0].current*pm.ps[0].voltage;
         i2c_smbus_read_block_data(g_i2c_addr[0],0x10,2,(uint8_t *)&(pm.ps[0].energyAll));
         i2c_smbus_read_block_data(g_i2c_addr[0],0x0f,2,(uint8_t *)&(pm.ps[0].energyNow));
         i2c_smbus_read_block_data(g_i2c_addr[0],0x17,2,(uint8_t *)&(pm.ps[0].cycleNum));
         i2c_smbus_read_block_data(g_i2c_addr[0],0x12,2,(uint8_t *)&(pm.ps[0].thisWorkTime));
-        pm.ps[1].volatge=vol2;
+        pm.ps[1].voltage=vol2;
         i2c_smbus_read_block_data(g_i2c_addr[1],0x0a,2,(uint8_t *)&(pm.ps[1].current));
-        pm.ps[1].power=pm.ps[1].current*pm.ps[1].volatge;
+        pm.ps[1].power=pm.ps[1].current*pm.ps[1].voltage;
         i2c_smbus_read_block_data(g_i2c_addr[1],0x10,2,(uint8_t *)&(pm.ps[1].energyAll));
         i2c_smbus_read_block_data(g_i2c_addr[1],0x0f,2,(uint8_t *)&(pm.ps[1].energyNow));
         i2c_smbus_read_block_data(g_i2c_addr[1],0x17,2,(uint8_t *)&(pm.ps[1].cycleNum));
         i2c_smbus_read_block_data(g_i2c_addr[1],0x12,2,(uint8_t *)&(pm.ps[1].thisWorkTime));
 
     }
-    return false;
+    return FALSE;
 }
 /*为三块智能电池分别分配iic地址,返回值代表smbus上有几块电池，并填充他们的iic地址到g_i2c_addr数组里*/
 uint8_t batt_arp()
@@ -300,7 +302,7 @@ uint8_t batt_arp()
     int i;
 	int found = 0;
     uint8_t *r,addr;
-    bool ret = false;
+    bool ret = FALSE;
 	uint8_t blk[I2C_SMBUS_BLOCK_MAX];
 	/*初始化i2c地址池里所有地址为FREE状态*/
     for(i = 0; i < SMBUS_ADDRESS_SIZE; i++)
@@ -313,7 +315,7 @@ uint8_t batt_arp()
     } while(*r++);
 	
 	/*给所有电池发送ARP_PREPARE命令*/
-    ret = i2c_smbus_write_byte(ARP_PREPARE);
+    ret = i2c_smbus_write_byte(ARP_ADDRESS,ARP_PREPARE);
     if(!ret) 
 	{
         return 0;
@@ -322,7 +324,7 @@ uint8_t batt_arp()
 	while(1) 
 	{
 		/*依次读取电池的UDID信息*/
-		ret = i2c_smbus_read_block_data(client, ARP_GET_UDID_GEN, 19,blk);
+		ret = i2c_smbus_read_block_data(ARP_ADDRESS, ARP_GET_UDID_GEN, 19,blk);
 		if(!ret) 
 		{
 			/*返回值不等于UDID_LENGTH说明目前系统中所有电池已枚举完，也可能是没有ack*/
@@ -360,7 +362,7 @@ uint8_t batt_arp()
 		}
 		/*发送assign addr命令给这个udid所在的电池分配i2c地址*/
 		blk[16] = addr << 1;
-		ret = i2c_smbus_write_block_data(client, ARP_ASSIGN_ADDR,UDID_LENGTH, blk);
+		ret = i2c_smbus_write_block_data(ARP_ADDRESS, ARP_ASSIGN_ADDR,UDID_LENGTH, blk);
 		if(ret)
 		{	
 			/*更新地址池里这个电池的i2c状态为已分配*/
@@ -379,7 +381,7 @@ uint8_t batt_arp()
 
 uint8_t power_available(uint8_t channel)
 {
-    if(pm.ps[channel].volatge>pm.minVolatge && pm.ps[channel].volatge<pm.maxVolatge)
+    if(pm.ps[channel].voltage>pm.minVoltage && pm.ps[channel].voltage<pm.maxVoltage)
         return 1;
     else
         return 0;
@@ -394,7 +396,7 @@ uint8_t select_power()
                 return 0;
             else
             {
-                if(pm.ps[0].volatge>pm.ps[1].volatge)
+                if(pm.ps[0].voltage>pm.ps[1].voltage)
                     return 1;
                 else
                     return 0;
@@ -406,7 +408,7 @@ uint8_t select_power()
                 return 1;
             else
             {
-                if(pm.ps[0].volatge>pm.ps[1].volatge)
+                if(pm.ps[0].voltage>pm.ps[1].voltage)
                     return 1;
                 else
                     return 0;
@@ -457,32 +459,32 @@ uint8_t power_man_init(int16_t min_vol,int16_t max_vol)
     /*batt_arp 用于轮训系统内存在几个智能电池*/
     g_i2c_addr[0]=0;
     g_i2c_addr[1]=0;
-    pm.minVolatge=min_vol;
-    pm.maxVolatge=max_vol;
+    pm.minVoltage=min_vol;
+    pm.maxVoltage=max_vol;
     g_batt_li_num=batt_arp();
     if(g_batt_li_num==0)
     {   
         /*系统中无智能电池*/
         pm.ps[0].voltage=read_adc(ADC_Channel_6);
-        if(pm.ps[0].volatge<INVALID_ADC_VALUE)
+        if(pm.ps[0].voltage<INVALID_ADC_VALUE)
             pm.ps[0].type=POWER_UNKNOWN;
         else
             pm.ps[0].type=POWER_ADAPTER;
         pm.ps[0].available=power_available(0);
         pm.ps[1].voltage=read_adc(ADC_Channel_7);
-        if(pm.ps[1].volatge<INVALID_ADC_VALUE)
+        if(pm.ps[1].voltage<INVALID_ADC_VALUE)
             pm.ps[1].type=POWER_UNKNOWN;
         else
             pm.ps[1].type=POWER_ADAPTER;
         pm.ps[1].available=power_available(1);
         pm.ps[2].voltage=read_adc(ADC_Channel_8);
-        if(pm.ps[2].volatge<INVALID_ADC_VALUE)
+        if(pm.ps[2].voltage<INVALID_ADC_VALUE)
             pm.ps[2].type=POWER_UNKNOWN;
         else
             pm.ps[2].type=POWER_BATTERY_DRY;
         pm.ps[2].available=power_available(2);
         pm.currentPs=select_power();
-        pm.power=read_adc(ADC_Channel_4)*pm.ps[pm.currentPs].volatge;
+        pm.power=read_adc(ADC_Channel_4)*pm.ps[pm.currentPs].voltage;
         switch_power(pm.currentPs);
     }
     else if(g_batt_li_num==1)
