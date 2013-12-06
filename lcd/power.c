@@ -1,5 +1,6 @@
 #include "stm32f10x.h"
 #include "power.h"
+#define INVALID_ADC_VALUE 100
 static uint8_t reserved[] =
                             /* As defined by SMBus Spec. Appendix C */
                             {0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x28,
@@ -171,7 +172,7 @@ bool i2c_smbus_write_byte(uint8_t addr,uint8_t command)
 
     return true;
 }
-bool i2c_smbus_read_block_data(uint8_t addr, uint8_t command, uint8_t *blk)
+bool i2c_smbus_read_block_data(uint8_t addr, uint8_t command, uint18_t len,uint8_t *blk)
 {
 	I2C_GenerateSTART(I2C2, ENABLE);
     if(!check_timeout(I2C_EVENT_MASTER_MODE_SELECT) return false;  
@@ -187,7 +188,7 @@ bool i2c_smbus_read_block_data(uint8_t addr, uint8_t command, uint8_t *blk)
     
 	I2C_Send7bitAddress(I2C2, addr<<1, I2C_Direction_Receiver);
     if(!check_timeout(I2C_EVENT_MASTER_BYTE_TRANSMITTED) return false;  
-	for(i=0;i<19;i++)
+	for(i=0;i<len;i++)
 	{
         if(!check_timeout(I2C_EVENT_MASTER_BYTE_RECEIVED) return false;  
 		blk[i] = I2C_ReceiveData(I2C2);
@@ -224,6 +225,46 @@ bool i2c_smbus_write_block_data(uint8_t addr, uint8_t command, uint8_t len,uint8
 	
     return true;
 }
+int16_t vol_abs(int16_t v1,int16_t v2)
+{
+    if(v1-v2>0)
+        return v1-v2;
+    else
+        return v2-v1;
+}
+bool read_batt_info()
+{
+    int16_t vol1,vol2;
+    if(g_batt_li_num==1)
+    {
+
+    }
+    else if(g_batt_li_num==2)
+    {
+        i2c_smbus_read_block_data(g_i2c_addr[0],0x09,2,(uint8_t *)&vol1);
+        i2c_smbus_read_block_data(g_i2c_addr[1],0x09,2,(uint8_t *)&vol2);
+        if(vol_abs(vol1-read_adc(ADC_Channel_6))>vol_abs(vol2-read_adc(ADC_Channel_6)))
+        {
+            uint8_t tmp;
+            uint16_t tmp1;
+            tmp=g_i2c_addr[0];
+            g_i2c_addr[0]=g_i2c_addr[1];
+            g_i2c_addr[1]=tmp;
+            tmp1=vol1;
+            vol1=vol2;
+            vol2=tmp1;
+        }
+        pm.ps[0].volatge=vol1;
+        i2c_smbus_read_block_data(g_i2c_addr[0],0x0a,2,(uint8_t *)&(pm.ps[0].current));
+        pm.ps[0].power=pm.ps[0].current*pm.ps[0].volatge;
+        i2c_smbus_read_block_data(g_i2c_addr[0],0x10,2,(uint8_t *)&(pm.ps[0].energyAll));
+        i2c_smbus_read_block_data(g_i2c_addr[0],0x0f,2,(uint8_t *)&(pm.ps[0].energyNow));
+        i2c_smbus_read_block_data(g_i2c_addr[0],0x17,2,(uint8_t *)&(pm.ps[0].cycleNum));
+        i2c_smbus_read_block_data(g_i2c_addr[0],0x12,2,(uint8_t *)&(pm.ps[0].thisWorkTime));
+
+    }
+    return false;
+}
 /*为三块智能电池分别分配iic地址,返回值代表smbus上有几块电池，并填充他们的iic地址到g_i2c_addr数组里*/
 uint8_t batt_arp()
 {
@@ -252,7 +293,7 @@ uint8_t batt_arp()
 	while(1) 
 	{
 		/*依次读取电池的UDID信息*/
-		ret = i2c_smbus_read_block_data(client, ARP_GET_UDID_GEN, blk);
+		ret = i2c_smbus_read_block_data(client, ARP_GET_UDID_GEN, 19,blk);
 		if(!ret) 
 		{
 			/*返回值不等于UDID_LENGTH说明目前系统中所有电池已枚举完，也可能是没有ack*/
@@ -353,6 +394,34 @@ uint8_t select_power()
         return 2;
     }
 }
+void switch_power(uint8_t no)
+{
+    if(no==0)/*选择插槽A*/
+    {
+        GPIO_SetBits(BATS_SEL_A_PORT, BATS_SEL_A_PIN);
+        GPIO_SetBits(BATS_SEL_STAA_PORT, BATS_SEL_STAA_PIN);
+        GPIO_SetBits(BATS_SEL_B_PORT, BATS_SEL_B_PIN);
+        GPIO_SetBits(BATS_SEL_STAB_PORT, BATS_SEL_STAB_PIN);
+        GPIO_SetBits(BATS_SEL_C_PORT, BATS_SEL_C_PIN);
+        GPIO_ResetBits(BATS_SEL_STAC_PORT, BATS_SEL_STAC_PIN);
+    }else if(no==1)/*选择插槽B*/
+    {
+        GPIO_ResetBits(BATS_SEL_A_PORT, BATS_SEL_A_PIN);
+        GPIO_ResetBits(BATS_SEL_STAA_PORT, BATS_SEL_STAA_PIN);
+        GPIO_ResetBits(BATS_SEL_B_PORT, BATS_SEL_B_PIN);
+        GPIO_ResetBits(BATS_SEL_STAB_PORT, BATS_SEL_STAB_PIN);
+        GPIO_SetBits(BATS_SEL_C_PORT, BATS_SEL_C_PIN);
+        GPIO_ResetBits(BATS_SEL_STAC_PORT, BATS_SEL_STAC_PIN);
+    }else/*选择插槽C*/
+    {
+        GPIO_ResetBits(BATS_SEL_A_PORT, BATS_SEL_A_PIN);
+        GPIO_ResetBits(BATS_SEL_STAA_PORT, BATS_SEL_STAA_PIN);
+        GPIO_SetBits(BATS_SEL_B_PORT, BATS_SEL_B_PIN);
+        GPIO_SetBits(BATS_SEL_STAB_PORT, BATS_SEL_STAB_PIN);
+        GPIO_ResetBits(BATS_SEL_C_PORT, BATS_SEL_C_PIN);
+        GPIO_SetBits(BATS_SEL_STAC_PORT, BATS_SEL_STAC_PIN);
+    }
+}
 uint8_t power_man_init(int16_t min_vol,int16_t max_vol)
 {
     pin_init();
@@ -363,26 +432,38 @@ uint8_t power_man_init(int16_t min_vol,int16_t max_vol)
     pm.maxVolatge=max_vol;
     g_batt_li_num=batt_arp();
     if(g_batt_li_num==0)
-    {/*系统中无智能电池*/
-        pm.ps[0].type=POWER_ADAPTER;
+    {   
+        /*系统中无智能电池*/
         pm.ps[0].voltage=read_adc(ADC_Channel_6);
+        if(pm.ps[0].volatge<INVALID_ADC_VALUE)
+            pm.ps[0].type=POWER_UNKNOWN;
+        else
+            pm.ps[0].type=POWER_ADAPTER;
         pm.ps[0].available=power_available(0);
-        pm.ps[1].type=POWER_ADAPTER;
         pm.ps[1].voltage=read_adc(ADC_Channel_7);
+        if(pm.ps[1].volatge<INVALID_ADC_VALUE)
+            pm.ps[1].type=POWER_UNKNOWN;
+        else
+            pm.ps[1].type=POWER_ADAPTER;
         pm.ps[1].available=power_available(1);
-        pm.ps[2].type=POWER_BATTERY_DRY;
         pm.ps[2].voltage=read_adc(ADC_Channel_8);
+        if(pm.ps[2].volatge<INVALID_ADC_VALUE)
+            pm.ps[2].type=POWER_UNKNOWN;
+        else
+            pm.ps[2].type=POWER_BATTERY_DRY;
         pm.ps[2].available=power_available(2);
         pm.currentPs=select_power();
         pm.power=read_adc(ADC_Channel_4)*pm.ps[pm.currentPs].volatge;
-    }
+        switch_power(pm.currentPs);
     }
     else if(g_batt_li_num==1)
-    {/*系统中有一个智能电池*/
+    {
+        /*系统中有一个智能电池*/
 
     }
     else if(g_batt_li_num==2)
-    {/*系统中有两个智能电池*/
+    {
+        /*系统中有两个智能电池*/
 
     }
     else
