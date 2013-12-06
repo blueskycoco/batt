@@ -238,6 +238,28 @@ bool read_batt_info()
     if(g_batt_li_num==1)
     {
 
+        i2c_smbus_read_block_data(g_i2c_addr[0],0x09,2,(uint8_t *)&vol1);
+        if(vol_abs(vol1-read_adc(ADC_Channel_6))>vol_abs(vol1-read_adc(ADC_Channel_7)))
+        {
+            pm.ps[1].type=POWER_BATTERY_LI;
+            pm.ps[1].volatge=vol1;
+            i2c_smbus_read_block_data(g_i2c_addr[0],0x0a,2,(uint8_t *)&(pm.ps[1].current));
+            pm.ps[1].power=pm.ps[1].current*pm.ps[1].volatge;
+            i2c_smbus_read_block_data(g_i2c_addr[0],0x10,2,(uint8_t *)&(pm.ps[1].energyAll));
+            i2c_smbus_read_block_data(g_i2c_addr[0],0x0f,2,(uint8_t *)&(pm.ps[1].energyNow));
+            i2c_smbus_read_block_data(g_i2c_addr[0],0x17,2,(uint8_t *)&(pm.ps[1].cycleNum));
+            i2c_smbus_read_block_data(g_i2c_addr[0],0x12,2,(uint8_t *)&(pm.ps[1].thisWorkTime));
+        }else
+        {
+            pm.ps[0].type=POWER_BATTERY_LI;
+            pm.ps[0].volatge=vol1;
+            i2c_smbus_read_block_data(g_i2c_addr[0],0x0a,2,(uint8_t *)&(pm.ps[0].current));
+            pm.ps[0].power=pm.ps[0].current*pm.ps[0].volatge;
+            i2c_smbus_read_block_data(g_i2c_addr[0],0x10,2,(uint8_t *)&(pm.ps[0].energyAll));
+            i2c_smbus_read_block_data(g_i2c_addr[0],0x0f,2,(uint8_t *)&(pm.ps[0].energyNow));
+            i2c_smbus_read_block_data(g_i2c_addr[0],0x17,2,(uint8_t *)&(pm.ps[0].cycleNum));
+            i2c_smbus_read_block_data(g_i2c_addr[0],0x12,2,(uint8_t *)&(pm.ps[0].thisWorkTime));
+        }
     }
     else if(g_batt_li_num==2)
     {
@@ -261,6 +283,13 @@ bool read_batt_info()
         i2c_smbus_read_block_data(g_i2c_addr[0],0x0f,2,(uint8_t *)&(pm.ps[0].energyNow));
         i2c_smbus_read_block_data(g_i2c_addr[0],0x17,2,(uint8_t *)&(pm.ps[0].cycleNum));
         i2c_smbus_read_block_data(g_i2c_addr[0],0x12,2,(uint8_t *)&(pm.ps[0].thisWorkTime));
+        pm.ps[1].volatge=vol2;
+        i2c_smbus_read_block_data(g_i2c_addr[1],0x0a,2,(uint8_t *)&(pm.ps[1].current));
+        pm.ps[1].power=pm.ps[1].current*pm.ps[1].volatge;
+        i2c_smbus_read_block_data(g_i2c_addr[1],0x10,2,(uint8_t *)&(pm.ps[1].energyAll));
+        i2c_smbus_read_block_data(g_i2c_addr[1],0x0f,2,(uint8_t *)&(pm.ps[1].energyNow));
+        i2c_smbus_read_block_data(g_i2c_addr[1],0x17,2,(uint8_t *)&(pm.ps[1].cycleNum));
+        i2c_smbus_read_block_data(g_i2c_addr[1],0x12,2,(uint8_t *)&(pm.ps[1].thisWorkTime));
 
     }
     return false;
