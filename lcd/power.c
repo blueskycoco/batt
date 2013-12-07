@@ -204,7 +204,7 @@ bool i2c_smbus_read_block_data(uint8_t addr, uint8_t command, uint8_t len,uint8_
     I2C_AcknowledgeConfig(I2C2, ENABLE);
     return TRUE;
 }
-bool check_battery_li()
+bool check_battery_li()/*1 是锂电池 0是适配器*/
 {
     I2C_GenerateSTART(I2C2, ENABLE);
     if(!check_timeout(I2C_EVENT_MASTER_MODE_SELECT)) return FALSE;  
@@ -367,7 +367,7 @@ uint8_t check_power(uint8_t channel)
         {
             if(pm.ps[channel].available==0)
             {
-                if(pm.ps[channel].type==POWER_ADAPTER&&power_type)
+                if(pm.ps[channel].type==POWER_UNKNOWN)
                     pm.ps[channel].available=1;
             }
 
@@ -382,10 +382,16 @@ uint8_t check_power(uint8_t channel)
             pm.ps[channel].type=POWER_BATTERY_LI;
         else
         {
-            pm.ps[channel].type=POWER_ADAPTER;
-            pm.ps[channel].voltage=vol;
+            if(vol>100)
+            {
+               pm.ps[channel].type=POWER_ADAPTER;
+            }
+            else
+            {
+                pm.ps[channel].type=POWER_UNKNOWN;
+            }
         }
-
+        pm.ps[channel].voltage=vol;
         if(pm.ps[channel].type==POWER_BATTERY_LI)
             read_batt_info(channel);
 
@@ -394,8 +400,6 @@ uint8_t check_power(uint8_t channel)
     {
 
         vol=read_adc(ADC_Channel_6+channel);
-        if(vol<100)
-            pm.ps[channel].type=POWER_UNKNOWN;
         if(vol>pm.minVoltage && vol<pm.maxVoltage)
         {
             if(pm.ps[channel].available==0)
@@ -410,6 +414,10 @@ uint8_t check_power(uint8_t channel)
 
             pm.ps[channel].available=0;
         }
+        if(vol<100)
+            pm.ps[channel].type=POWER_UNKNOWN;
+        else
+            pm.ps[channel].type=POWER_BATTERY_DRY;
         pm.ps[channel].voltage=vol;
     }
     return 0;
@@ -481,19 +489,48 @@ void switch_power(uint8_t no)
         GPIO_SetBits(BATS_SEL_STAC_PORT, BATS_SEL_STAC_PIN);
     }
 }
+PowerMan_t power_man_timer_poll(int16_t min_vol,int16_t max_vol)
+{
+    int i;
+    pm.minVoltage=min_vol;
+    pm.maxVoltage=max_vol;
+
+    for(i=0;i<3;i++)
+        check_power(i);
+    pm.currentPs=select_power();
+    pm.power=read_adc(ADC_Channel_4)*pm.ps[pm.currentPs].voltage;
+    return pm;
+}
+void power_man_timer_interrupt()
+{
+    int16_t vol;
+    int channel;
+    for(channel=0;channel<3;channel++)
+    {
+        vol=read_adc(ADC_Channel_6);
+        if(vol<pm.minVoltage || vol>pm.maxVoltage)
+            pm.ps[channel].available=0;
+    }
+
+    pm.currentPs=select_power();
+    switch_power(pm.currentPs);
+
+}
 uint8_t power_man_init(int16_t min_vol,int16_t max_vol)
 {
     int i,j;
     int16_t tmp;
     pin_init();
-    /*batt_arp 用于轮训系统内存在几个智能电池*/
     pm.minVoltage=min_vol;
     pm.maxVoltage=max_vol;
-    pm.ps[0].type=POWER_ADAPTER;
+    pm.ps[0].type=POWER_UNKNOWN;
     pm.ps[0].available=0;
-    pm.ps[1].type=POWER_ADAPTER;
+    pm.ps[1].type=POWER_UNKNOWN;
     pm.ps[1].available=0;
-    pm.ps[2].type=POWER_BATTERY_DRI;
+    pm.ps[2].type=POWER_UNKNOWN;
+    pm.ps[2].available=0;
+    for(i=0;i<3;i++)
+        check_power(i);
     pm.currentPs=select_power();
     pm.power=read_adc(ADC_Channel_4)*pm.ps[pm.currentPs].voltage;
     switch_power(pm.currentPs);

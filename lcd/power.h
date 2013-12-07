@@ -94,7 +94,8 @@ struct PowerMan{
 typedef struct PowerMan PowerMan_t;
 /*power系统的初始化*/
 uint8_t power_man_init(int16_t min_vol,int16_t max_vol);
-void power_man_timer_interrupt(PowerMan_t * p);
+void power_man_timer_interrupt(void);
+PowerMan_t power_man_timer_poll(int16_t min_vol,int16_t max_vol);
 #ifdef __cplusplus
 }
 #endif
